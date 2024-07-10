@@ -1,0 +1,72 @@
+import pandas as pd
+import requests
+
+# Carregar o arquivo CSV
+from google.colab import files
+uploaded = files.upload()
+
+# Ler o arquivo CSV com delimitador de ponto e vírgula e corrigir a codificação
+df = pd.read_csv(next(iter(uploaded.keys())), encoding='ISO-8859-1', delimiter=';')
+
+# Renomear a coluna para remover caracteres indesejados
+df.columns = ['DOI', 'Country']
+
+# Inspecionar as primeiras linhas do DataFrame para verificar os nomes das colunas
+print(df.head())
+
+# Verificar as colunas disponíveis
+print(df.columns)
+
+# Função para obter o ano de publicação do CrossRef
+def get_year_from_crossref(doi):
+    url = f"https://api.crossref.org/works/{doi}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        year = data['message']['published-print']['date-parts'][0][0]
+        return year
+    except Exception as e:
+        print(f"Error fetching data for DOI: {doi} - {e}")
+        return "Error occurred"
+
+# Função para obter o número de citações do CrossRef
+def get_citations_from_crossref(doi):
+    url = f"https://api.crossref.org/works/{doi}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        citations = data['message'].get('is-referenced-by-count', 0)
+        return citations
+    except Exception as e:
+        print(f"Error fetching data for DOI: {doi} - {e}")
+        return 0
+
+# Inicializar listas para armazenar dados
+year_list = []
+citations_list = []
+
+# Iterar sobre os DOIs para obter o ano de publicação e o número de citações
+for doi in df['DOI']:
+    year = get_year_from_crossref(doi)
+    year_list.append(year)
+    
+    citations = get_citations_from_crossref(doi)
+    citations_list.append(citations)
+
+# Adicionar as colunas 'Year' e 'Citations' ao DataFrame original
+df['Year'] = year_list
+df['Citations'] = citations_list
+
+# Remover duplicatas
+df.drop_duplicates(subset='DOI', keep='first', inplace=True)
+
+# Salvar o DataFrame final em um arquivo CSV
+df.to_csv('doi_year_country_citations.csv', index=False)
+
+# Fazer download do arquivo resultante
+files.download('doi_year_country_citations.csv')
+
+# Mostrar as primeiras linhas do DataFrame final
+print(df.head())

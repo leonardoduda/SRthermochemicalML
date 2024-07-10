@@ -1,0 +1,70 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+
+def get_first_author_from_crossref(doi):
+    url = f"https://api.crossref.org/works/{doi}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        first_author = data['message']['author'][0]['given'] + " " + data['message']['author'][0]['family']
+        return first_author
+    except Exception as e:
+        print(f"Error fetching data for DOI: {doi} - {e}")
+        return "Error occurred"
+
+def get_author_info_from_doi_html(doi, first_author):
+    url = f"https://doi.org/{doi}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Para Springer
+        meta_tag = soup.find('meta', {'name': 'citation_author_institution'})
+        if meta_tag:
+            return meta_tag['content']
+
+        # Para PubMed
+        pubmed_info = soup.find(string=re.compile(first_author, re.IGNORECASE))
+        if pubmed_info:
+            pubmed_affiliation = pubmed_info.find_next('li')
+            if pubmed_affiliation:
+                return pubmed_affiliation.get_text(strip=True)
+
+        # Para Scopus
+        scopus_affiliation = soup.find('li', {'id': re.compile('^superscript_')})
+        if scopus_affiliation:
+            return scopus_affiliation.get_text(strip=True)
+
+        # Para Elsevier
+        elsevier_affiliation = soup.find('textfn')
+        if elsevier_affiliation:
+            return elsevier_affiliation.get_text(strip=True)
+
+        return "Not found"
+    except Exception as e:
+        print(f"Error fetching data for DOI: {doi} - {e}")
+        return "Error occurred"
+
+def extract_country(author_info):
+    if author_info and "," in author_info:
+        return author_info.split(",")[-1].strip()
+    return author_info
+
+# Lista de DOIs
+dois = [
+    "PRIMEIRO DOI",
+    "SEGUNDO DOI",
+    "ULTIMO DOI"
+]
+
+for doi in dois:
+    first_author = get_first_author_from_crossref(doi)
+    if "Error" in first_author:
+        print(f"{doi}: {first_author}")
+    else:
+        author_info = get_author_info_from_doi_html(doi, first_author)
+        country = extract_country(author_info)
+        print(f"{doi}: {country}")

@@ -1,0 +1,48 @@
+import pandas as pd
+
+from google.colab import files
+uploaded = files.upload()
+
+df = pd.read_csv(next(iter(uploaded.keys())))
+
+# Função para categorizar os DOIs
+def categorize_doi(doi):
+    if 'scopus' in doi:
+        return 'Scopus'
+    elif 'webofscience' in doi or 'wos' in doi:
+        return 'Web of Science'
+    elif '10.1007' in doi or 'springer' in doi:
+        return 'SpringerLink'
+    elif '10.1016' in doi or 'sciencedirect' in doi:
+        return 'ScienceDirect'
+    elif 'pubmed' in doi or 'ncbi.nlm.nih.gov' in doi or '10.1093' in doi:
+        return 'PubMed'
+    else:
+        return 'Outros'
+
+# Adicionar uma nova coluna 'Source' categorizando cada DOI
+df['Source'] = df['DOI'].apply(categorize_doi)
+
+# Separar as referências por fonte
+scopus_refs = df[df['Source'] == 'Scopus']
+webofscience_refs = df[df['Source'] == 'Web of Science']
+springerlink_refs = df[df['Source'] == 'SpringerLink']
+sciencedirect_refs = df[df['Source'] == 'ScienceDirect']
+pubmed_refs = df[df['Source'] == 'PubMed']
+other_refs = df[df['Source'] == 'Outros']
+
+# Salvar os resultados em arquivos CSV separados
+scopus_refs.to_csv('scopus_references.csv', index=False)
+webofscience_refs.to_csv('webofscience_references.csv', index=False)
+springerlink_refs.to_csv('springerlink_references.csv', index=False)
+sciencedirect_refs.to_csv('sciencedirect_references.csv', index=False)
+pubmed_refs.to_csv('pubmed_references.csv', index=False)
+other_refs.to_csv('other_references.csv', index=False)
+
+# Fazer download dos arquivos resultantes
+files.download('scopus_references.csv')
+files.download('webofscience_references.csv')
+files.download('springerlink_references.csv')
+files.download('sciencedirect_references.csv')
+files.download('pubmed_references.csv')
+files.download('other_references.csv')
